@@ -30,9 +30,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    @ExceptionHandler(StockAnalysisException.class)
-    public ResponseEntity<Map<String, Object>> handleStockAnalysis(StockAnalysisException ex) {
-        log.warn("Stock analysis error", ex);
+    @ExceptionHandler(AnalysisException.class)
+    public ResponseEntity<Map<String, Object>> handleAnalysis(AnalysisException ex) {
+        log.warn("Analysis workflow error", ex);
         Map<String, Object> body = createBaseBody(ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }

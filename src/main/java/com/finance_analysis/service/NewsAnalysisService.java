@@ -26,29 +26,29 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.finance_analysis.config.StockAnalysisProperties;
-import com.finance_analysis.dto.StockAnalysisResponse;
+import com.finance_analysis.config.NewsAnalysisProperties;
+import com.finance_analysis.dto.NewsAnalysisResponse;
 import com.finance_analysis.exception.AnalysisException;
-import com.finance_analysis.mapper.StockAnalysisMapper;
-import com.finance_analysis.model.StockAnalysisRecord;
+import com.finance_analysis.mapper.NewsAnalysisMapper;
+import com.finance_analysis.model.NewsAnalysisRecord;
 
 @Service
-public class StockAnalysisService {
+public class NewsAnalysisService {
 
-    private static final Logger log = LoggerFactory.getLogger(StockAnalysisService.class);
+    private static final Logger log = LoggerFactory.getLogger(NewsAnalysisService.class);
     private static final int DEFAULT_HISTORY_LIMIT = 10;
-    private static final String EMPTY_RESULT_MESSAGE = "n8n \u672A\u8FD4\u56DE\u5206\u6790\u7ED3\u679C\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5";
+    private static final String EMPTY_RESULT_MESSAGE = "n8n did not return a news analysis result, please retry later";
 
-    private final StockAnalysisMapper stockAnalysisMapper;
+    private final NewsAnalysisMapper newsAnalysisMapper;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private final StockAnalysisProperties properties;
+    private final NewsAnalysisProperties properties;
 
-    public StockAnalysisService(StockAnalysisMapper stockAnalysisMapper,
-                                RestTemplateBuilder restTemplateBuilder,
-                                ObjectMapper objectMapper,
-                                StockAnalysisProperties properties) {
-        this.stockAnalysisMapper = stockAnalysisMapper;
+    public NewsAnalysisService(NewsAnalysisMapper newsAnalysisMapper,
+                               RestTemplateBuilder restTemplateBuilder,
+                               ObjectMapper objectMapper,
+                               NewsAnalysisProperties properties) {
+        this.newsAnalysisMapper = newsAnalysisMapper;
         this.restTemplate = restTemplateBuilder
                 .requestFactory(() -> {
                     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -61,37 +61,42 @@ public class StockAnalysisService {
         this.properties = properties;
     }
 
-    public StockAnalysisResponse analyzeStockCode(String stockCode) {
+    public NewsAnalysisResponse analyzeKeyword(String keyword) {
         if (properties.getN8nUrl() == null) {
-            throw new AnalysisException("n8n webhook URL is not configured");
+            throw new AnalysisException("News analysis n8n webhook URL is not configured");
         }
 
-        Map<String, Object> payload = buildPayload(stockCode);
-        log.info("Forwarding stock code '{}' to n8n webhook {}", stockCode, properties.getN8nUrl());
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.isEmpty()) {
+            throw new AnalysisException("Keyword is required");
+        }
+
+        Map<String, Object> payload = buildPayload(normalizedKeyword);
+        log.info("Forwarding keyword '{}' to n8n webhook {}", normalizedKeyword, properties.getN8nUrl());
         String rawResponse = invokeN8nWebhook(payload);
 
         JsonNode analysisNode;
         try {
             analysisNode = ensureAnalysisPresent(rawResponse);
         } catch (AnalysisException ex) {
-            log.warn("n8n returned empty payload for stock '{}'", stockCode);
+            log.warn("n8n returned empty payload for keyword '{}'", normalizedKeyword);
             ObjectNode errorNode = objectMapper.createObjectNode();
             errorNode.put("error", ex.getMessage());
             analysisNode = errorNode;
             rawResponse = analysisNode.toString();
         }
 
-        StockAnalysisRecord record = new StockAnalysisRecord();
-        record.setStockCode(stockCode);
+        NewsAnalysisRecord record = new NewsAnalysisRecord();
+        record.setKeyword(normalizedKeyword);
         record.setRawResponse(rawResponse);
         record.setRequestedAt(LocalDateTime.now());
-        stockAnalysisMapper.insert(record);
+        newsAnalysisMapper.insert(record);
 
-        return new StockAnalysisResponse(record.getId(), stockCode, analysisNode, record.getRequestedAt());
+        return new NewsAnalysisResponse(record.getId(), normalizedKeyword, analysisNode, record.getRequestedAt());
     }
 
-    public List<StockAnalysisResponse> fetchRecentHistory() {
-        return stockAnalysisMapper.findRecent(DEFAULT_HISTORY_LIMIT)
+    public List<NewsAnalysisResponse> fetchRecentHistory() {
+        return newsAnalysisMapper.findRecent(DEFAULT_HISTORY_LIMIT)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -101,16 +106,16 @@ public class StockAnalysisService {
         try {
             return executePost(payload);
         } catch (RestClientResponseException ex) {
-            log.warn("POST request to n8n failed with status {}: {}", ex.getRawStatusCode(), ex.getResponseBodyAsString());
+            log.warn("POST request to n8n failed with status {}: {}", ex.getStatusCode().value(), ex.getResponseBodyAsString());
             if (shouldFallbackToGet(ex)) {
                 try {
-                    return executeGet((String) payload.get("stockCode"));
+                    return executeGet((String) payload.get("keyword"));
                 } catch (RestClientException getEx) {
                     log.warn("GET request to n8n fallback failed", getEx);
                     throw new AnalysisException("n8n GET request failed: " + getEx.getMessage(), getEx);
                 }
             }
-            throw new AnalysisException("n8n responded with status " + ex.getRawStatusCode(), ex);
+            throw new AnalysisException("n8n responded with status " + ex.getStatusCode().value(), ex);
         } catch (RestClientException ex) {
             log.warn("Error communicating with n8n webhook", ex);
             throw new AnalysisException("Failed to call n8n webhook", ex);
@@ -118,11 +123,11 @@ public class StockAnalysisService {
     }
 
     private boolean shouldFallbackToGet(RestClientResponseException ex) {
-        if (ex.getRawStatusCode() == 405 || ex.getRawStatusCode() == 404) {
+        if (ex.getStatusCode().value() == 405 || ex.getStatusCode().value() == 404) {
             return true;
         }
         String body = ex.getResponseBodyAsString();
-        return body != null && body.toLowerCase().contains("not registered for post");
+        return body.toLowerCase().contains("not registered for post");
     }
 
     private String executePost(Map<String, Object> payload) {
@@ -142,14 +147,9 @@ public class StockAnalysisService {
         return body == null ? "" : body;
     }
 
-    private String executeGet(String stockCode) {
+    private String executeGet(String keyword) {
         String uri = UriComponentsBuilder.fromUri(properties.getN8nUrl())
-                .queryParam("stockCode", stockCode)
-                .queryParam("code", stockCode)
-                .queryParam("ticker", stockCode)
-                .queryParam("symbol", stockCode)
-                .queryParam("stock_code", stockCode)
-                .queryParam("tickerSymbol", stockCode)
+                .queryParam("keyword", keyword)
                 .build(true)
                 .toUriString();
         log.info("Retrying n8n webhook via GET: {}", uri);
@@ -165,29 +165,23 @@ public class StockAnalysisService {
         return body == null ? "" : body;
     }
 
-    private Map<String, Object> buildPayload(String stockCode) {
+    private Map<String, Object> buildPayload(String keyword) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("stockCode", stockCode);
-        payload.put("code", stockCode);
-        payload.put("ticker", stockCode);
-        payload.put("symbol", stockCode);
-        payload.put("stock_code", stockCode);
-        payload.put("tickerSymbol", stockCode);
-        payload.put("value", stockCode);
+        payload.put("keyword", keyword);
         return payload;
     }
 
-    private StockAnalysisResponse toResponse(StockAnalysisRecord record) {
+    private NewsAnalysisResponse toResponse(NewsAnalysisRecord record) {
         JsonNode analysisNode;
         try {
             analysisNode = ensureAnalysisPresent(record.getRawResponse());
         } catch (AnalysisException ex) {
-            log.warn("Stock analysis history record {} for '{}' contains empty n8n payload", record.getId(), record.getStockCode());
+            log.warn("News analysis history record {} for keyword '{}' contains empty n8n payload", record.getId(), record.getKeyword());
             ObjectNode errorNode = objectMapper.createObjectNode();
             errorNode.put("error", ex.getMessage());
             analysisNode = errorNode;
         }
-        return new StockAnalysisResponse(record.getId(), record.getStockCode(), analysisNode, record.getRequestedAt());
+        return new NewsAnalysisResponse(record.getId(), record.getKeyword(), analysisNode, record.getRequestedAt());
     }
 
     private JsonNode ensureAnalysisPresent(String rawResponse) {
@@ -222,7 +216,7 @@ public class StockAnalysisService {
             return analysisNode.textValue() == null || analysisNode.textValue().trim().isEmpty();
         }
         if (analysisNode.isArray() || analysisNode.isObject()) {
-            return analysisNode.size() == 0;
+            return analysisNode.isEmpty();
         }
         return false;
     }

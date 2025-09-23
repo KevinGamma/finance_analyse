@@ -8,3 +8,14 @@ export interface StockAnalysisResponse {
   analysis: unknown;
   requestedAt: string;
 }
+
+export interface NewsAnalysisRequest {
+  keyword: string;
+}
+
+export interface NewsAnalysisResponse {
+  id?: number;
+  keyword: string;
+  analysis: unknown;
+  requestedAt: string;
+}
