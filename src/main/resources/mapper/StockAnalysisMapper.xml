@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.finance_analysis.mapper.StockAnalysisMapper">
+
+    <resultMap id="StockAnalysisRecordMap" type="com.finance_analysis.model.StockAnalysisRecord">
+        <id column="id" property="id"/>
+        <result column="stock_code" property="stockCode"/>
+        <result column="raw_response" property="rawResponse"/>
+        <result column="requested_at" property="requestedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.finance_analysis.model.StockAnalysisRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_analyse (stock_code, raw_response, requested_at)
+        VALUES (#{stockCode}, #{rawResponse}, #{requestedAt})
+    </insert>
+
+    <select id="findRecent" resultMap="StockAnalysisRecordMap">
+        SELECT id, stock_code, raw_response, requested_at
+        FROM stock_analyse
+        ORDER BY requested_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
