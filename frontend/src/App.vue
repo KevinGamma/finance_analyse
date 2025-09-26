@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="app-shell">
     <el-container>
       <el-header class="app-header">
@@ -33,6 +33,9 @@
                   <el-button type="primary" :loading="stockLoading" @click="submitStockForm">
                     开始分析
                   </el-button>
+                  <el-button class="ml8" :loading="singleStockLoading" @click="submitSingleStock">
+                    结构化分析
+                  </el-button>
                 </el-form-item>
               </el-form>
               <el-divider />
@@ -49,6 +52,12 @@
                   </el-scrollbar>
                 </div>
               </section>
+              <el-divider />
+              <section>
+                <h2 class="section-title">结构化分析面板</h2>
+                <el-empty v-if="!singleStockData" description="点击上方“结构化分析”获取可视化面板" />
+                <StockAdvicePanel v-else :data="singleStockData" />
+              </section>
             </el-card>
           </el-col>
           <el-col :xs="24" :lg="12">
@@ -64,6 +73,11 @@
                 height="520"
               >
                 <el-table-column prop="stockCode" label="股票" width="120" />
+                <el-table-column prop="analysisType" label="分析类型" width="140">
+                  <template #default="scope">
+                    {{ formatAnalysisType(scope.row.analysisType) }}
+                  </template>
+                </el-table-column>
                 <el-table-column label="分析时间" width="200">
                   <template #default="scope">
                     {{ formatDate(scope.row.requestedAt) }}
@@ -168,14 +182,19 @@
         <div class="dialog-header">
           <span>股票分析详情</span>
           <span v-if="selectedStockHistory">
-            {{ selectedStockHistory.stockCode }} · {{ formatDate(selectedStockHistory.requestedAt) }}
+            {{ selectedStockHistory.stockCode }} · {{ formatDate(selectedStockHistory.requestedAt) }} · {{ formatAnalysisType(selectedStockHistory.analysisType) }}
           </span>
         </div>
       </template>
       <div v-if="selectedStockHistory" class="dialog-body">
-        <el-scrollbar max-height="400px">
-          <pre>{{ toReadableText(selectedStockHistory.analysis) }}</pre>
-        </el-scrollbar>
+        <template v-if="selectedStockHistory.analysisType === 'COMPREHENSIVE'">
+          <el-scrollbar max-height="400px">
+            <pre>{{ toReadableText(selectedStockHistory.analysis) }}</pre>
+          </el-scrollbar>
+        </template>
+        <template v-else>
+          <StockAdvicePanel :data="selectedStructuredHistoryData" />
+        </template>
       </div>
       <template #footer>
         <el-button type="primary" @click="handleStockDetailClose">关闭</el-button>
@@ -209,28 +228,50 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import type { AxiosError } from 'axios';
 
-import { analyzeStock, fetchHistory as fetchStockHistory } from './api/stockAnalysis';
+import { analyzeStock, fetchHistory as fetchStockHistory, toExtractedJson } from './api/stockAnalysis';
 import { analyzeNews, fetchNewsHistory } from './api/newsAnalysis';
 import type {
   NewsAnalysisRequest,
   NewsAnalysisResponse,
-  StockAnalysisRequest,
-  StockAnalysisResponse
+  StockAnalysisResponse,
+  SingleStockApiResponse,
+  ExtractedJson
 } from './types';
+import StockAdvicePanel from './components/StockAdvicePanel.vue';
+
+interface StockFormModel { stockCode: string }
 
 const stockFormRef = ref<FormInstance>();
-const stockForm = reactive<StockAnalysisRequest>({ stockCode: '' });
+const stockForm = reactive<StockFormModel>({ stockCode: '' });
 const stockLoading = ref(false);
+const singleStockLoading = ref(false);
 const stockHistoryLoading = ref(false);
 const stockAnalysisResult = ref<StockAnalysisResponse | null>(null);
+const singleStockData = ref<ExtractedJson | null>(null);
 const stockHistory = ref<StockAnalysisResponse[]>([]);
 const stockDetailDialogVisible = ref(false);
 const selectedStockHistory = ref<StockAnalysisResponse | null>(null);
+
+const analysisTypeLabel: Record<StockAnalysisResponse['analysisType'], string> = {
+  COMPREHENSIVE: '综合分析',
+  STRUCTURED: '结构化分析'
+};
+
+const selectedStructuredHistoryData = computed<ExtractedJson | null>(() => {
+  if (!selectedStockHistory.value || selectedStockHistory.value.analysisType !== 'STRUCTURED') {
+    return null;
+  }
+  return toExtractedJson(selectedStockHistory.value.analysis as SingleStockApiResponse);
+});
+
+function formatAnalysisType(type: StockAnalysisResponse['analysisType']) {
+  return analysisTypeLabel[type] ?? type;
+}
 
 const newsFormRef = ref<FormInstance>();
 const newsForm = reactive<NewsAnalysisRequest>({ keyword: '' });
@@ -241,7 +282,7 @@ const newsHistory = ref<NewsAnalysisResponse[]>([]);
 const newsDetailDialogVisible = ref(false);
 const selectedNewsHistory = ref<NewsAnalysisResponse | null>(null);
 
-const stockRules = reactive<FormRules<StockAnalysisRequest>>({
+const stockRules = reactive<FormRules<StockFormModel>>({
   stockCode: [
     { required: true, message: '请输入股票代码', trigger: 'blur' },
     {
@@ -268,8 +309,8 @@ async function submitStockForm() {
 
   stockLoading.value = true;
   try {
-    const payload = { stockCode: stockForm.stockCode.trim().toUpperCase() };
-    const response = await analyzeStock(payload);
+    const code = stockForm.stockCode.trim().toUpperCase();
+    const response = await analyzeStock({ stockCode: code, analysisType: 'COMPREHENSIVE' });
     stockAnalysisResult.value = response;
     stockForm.stockCode = '';
     ElMessage.success(`已获取 ${response.stockCode} 的分析结果`);
@@ -278,6 +319,28 @@ async function submitStockForm() {
     ElMessage.error(extractErrorMessage(error));
   } finally {
     stockLoading.value = false;
+  }
+}
+
+async function submitSingleStock() {
+  if (!stockFormRef.value) return;
+  try {
+    await stockFormRef.value.validate();
+  } catch {
+    return;
+  }
+  singleStockLoading.value = true;
+  try {
+    const code = stockForm.stockCode.trim().toUpperCase();
+    const response = await analyzeStock({ stockCode: code, analysisType: 'STRUCTURED' });
+    singleStockData.value = toExtractedJson(response.analysis as SingleStockApiResponse);
+    ElMessage.success(`已获取 ${code} 的结构化分析`);
+    await refreshStockHistory();
+  } catch (error) {
+    singleStockData.value = null;
+    ElMessage.error(extractErrorMessage(error));
+  } finally {
+    singleStockLoading.value = false;
   }
 }
 
@@ -357,38 +420,81 @@ function formatDate(value: string) {
 }
 
 function toReadableText(value: unknown) {
+  const result = renderValue(value);
+  return result || '暂无分析结果';
+}
+
+function renderValue(value: unknown): string {
   if (value === null || value === undefined) {
-    return '暂无分析内容';
+    return '';
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed && isJsonLike(trimmed)) {
+      try {
+        return renderValue(JSON.parse(trimmed));
+      } catch (error) {
+        return formatMultilineContent(value);
+      }
+    }
+    return formatMultilineContent(value);
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
   }
   if (Array.isArray(value)) {
-    const merged = value
-      .map((item) => {
-        if (typeof item === 'string') {
-          return item;
-        }
-        if (item && typeof item === 'object') {
-          const maybeText = (item as Record<string, unknown>).text;
-          if (typeof maybeText === 'string') {
-            return maybeText;
-          }
-        }
-        return JSON.stringify(item, null, 2);
-      })
-      .filter((item) => Boolean(item))
-      .join('\n\n');
-    return formatMultilineContent(merged);
+    const items = value
+      .map((item) => renderValue(item))
+      .filter((item) => item.trim().length > 0);
+    return items.join('\n\n');
   }
   if (typeof value === 'object') {
-    const maybeText = (value as Record<string, unknown>).text;
+    const record = value as Record<string, unknown>;
+    const maybeText = record.text;
     if (typeof maybeText === 'string') {
       return formatMultilineContent(maybeText);
     }
-    return formatMultilineContent(JSON.stringify(value, null, 2));
+    const entries = Object.entries(record)
+      .map(([key, val]) => formatEntry(key, val))
+      .filter((item) => item.trim().length > 0);
+    return entries.join('\n\n');
   }
-  if (typeof value === 'string') {
-    return formatMultilineContent(value);
+  return '';
+}
+
+function formatEntry(key: string, value: unknown): string {
+  const rendered = renderValue(value);
+  if (!rendered) {
+    return '';
   }
-  return String(value);
+  const label = prettifyKey(key);
+  if (rendered.includes('\n')) {
+    return `${label}:\n${indentMultiline(rendered)}`;
+  }
+  return `${label}: ${rendered}`;
+}
+
+function prettifyKey(key: string): string {
+  return key
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function indentMultiline(value: string): string {
+  return value
+    .split('\n')
+    .map((line) => (line.trim() ? `  ${line}` : line))
+    .join('\n');
+}
+
+function isJsonLike(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  );
 }
 
 function formatMultilineContent(content: string) {
@@ -457,6 +563,8 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
+.ml8 { margin-left: 8px; }
+
 .analysis-result {
   background-color: #f7f9fc;
   border-radius: 8px;
@@ -517,3 +625,5 @@ onMounted(async () => {
   margin-top: 24px;
 }
 </style>
+
+

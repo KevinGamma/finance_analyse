@@ -6,6 +6,7 @@ public class StockAnalysisRecord {
 
     private Long id;
     private String stockCode;
+    private String analysisType;
     private String rawResponse;
     private LocalDateTime requestedAt;
 
@@ -23,6 +24,14 @@ public class StockAnalysisRecord {
 
     public void setStockCode(String stockCode) {
         this.stockCode = stockCode;
+    }
+
+    public String getAnalysisType() {
+        return analysisType;
+    }
+
+    public void setAnalysisType(String analysisType) {
+        this.analysisType = analysisType;
     }
 
     public String getRawResponse() {

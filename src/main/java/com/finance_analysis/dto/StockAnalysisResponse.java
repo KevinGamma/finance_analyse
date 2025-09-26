@@ -8,15 +8,17 @@ public class StockAnalysisResponse {
 
     private Long id;
     private String stockCode;
+    private String analysisType;
     private JsonNode analysis;
     private LocalDateTime requestedAt;
 
     public StockAnalysisResponse() {
     }
 
-    public StockAnalysisResponse(Long id, String stockCode, JsonNode analysis, LocalDateTime requestedAt) {
+    public StockAnalysisResponse(Long id, String stockCode, String analysisType, JsonNode analysis, LocalDateTime requestedAt) {
         this.id = id;
         this.stockCode = stockCode;
+        this.analysisType = analysisType;
         this.analysis = analysis;
         this.requestedAt = requestedAt;
     }
@@ -35,6 +37,14 @@ public class StockAnalysisResponse {
 
     public void setStockCode(String stockCode) {
         this.stockCode = stockCode;
+    }
+
+    public String getAnalysisType() {
+        return analysisType;
+    }
+
+    public void setAnalysisType(String analysisType) {
+        this.analysisType = analysisType;
     }
 
     public JsonNode getAnalysis() {
