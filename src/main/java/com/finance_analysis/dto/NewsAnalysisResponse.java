@@ -29,6 +29,10 @@ public class NewsAnalysisResponse {
         this.id = id;
     }
 
+    public String getKeyword() {
+        return keyword;
+    }
+
     public void setKeyword(String keyword) {
         this.keyword = keyword;
     }

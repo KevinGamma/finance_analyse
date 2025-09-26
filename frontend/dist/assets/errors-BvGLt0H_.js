@@ -1,0 +1,1 @@
+function a(t){var s,n;if(typeof t=="string"&&t.trim())return t;const e=t;return(n=(s=e==null?void 0:e.response)==null?void 0:s.data)!=null&&n.message?e.response.data.message:e.code==="ECONNABORTED"||typeof e.message=="string"&&e.message.toLowerCase().includes("timeout")?"请求超时，请稍后重试。":"请求失败，请稍后重试。"}export{a as e};

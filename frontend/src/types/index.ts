@@ -1,3 +1,24 @@
+export interface UserProfile {
+  id: number;
+  username: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: UserProfile;
+}
+
+export interface LoginPayload {
+  username: string;
+  password: string;
+}
+
+export interface RegisterPayload {
+  username: string;
+  password: string;
+}
+
 export interface StockAnalysisRequest {
   stockCode: string;
   analysisType: "COMPREHENSIVE" | "STRUCTURED";

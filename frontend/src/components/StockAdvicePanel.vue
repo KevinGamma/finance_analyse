@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="stock-advice-panel" v-if="data">
     <el-row :gutter="16">
       <el-col :xs="24" :lg="12">
@@ -39,7 +39,7 @@
             <el-descriptions-item label="最低">{{ fmtNum(data.price_data?.low) }}</el-descriptions-item>
             <el-descriptions-item label="波动幅度">{{ fmtNum(data.technical_analysis?.volatility?.daily_range_percent) }}%</el-descriptions-item>
             <el-descriptions-item label="成交量" :span="2">{{ fmtInt(data.price_data?.volume) }}</el-descriptions-item>
-            <el-descriptions-item label="20日均量">{{ fmtInt(data.price_data?.avg_volume_20d) }}</el-descriptions-item>
+            <el-descriptions-item label="20 日均量">{{ fmtInt(data.price_data?.avg_volume_20d) }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
@@ -66,78 +66,90 @@
             <el-descriptions-item label="MA20">{{ fmtNum(data.technical_analysis?.indicators?.moving_averages?.ma20) }}</el-descriptions-item>
             <el-descriptions-item label="RSI">{{ fmtNum(data.technical_analysis?.indicators?.rsi?.value) }}</el-descriptions-item>
             <el-descriptions-item label="MACD">{{ fmtNum(data.technical_analysis?.indicators?.macd?.macd_line) }}</el-descriptions-item>
-            <el-descriptions-item label="BOLL位置">{{ data.technical_analysis?.indicators?.bollinger_bands?.position || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="BOLL 位置">{{ data.technical_analysis?.indicators?.bollinger_bands?.position || '-' }}</el-descriptions-item>
           </el-descriptions>
           <div class="sr-box mt8" v-if="hasSR">
             <div>
               <span class="sr-title">支撑</span>
-              <el-tag v-for="(s, i) in (data.technical_analysis?.support_resistance?.support || [])" :key="'s'+i" class="mr8 mb8" type="success" effect="light">
+              <el-tag
+                v-for="(s, i) in (data.technical_analysis?.support_resistance?.support || [])"
+                :key="`s${i}`"
+                class="mr8 mb8"
+                type="success"
+                effect="light"
+              >
                 {{ fmtNum(s.level) }} · {{ s.strength || '-' }}
               </el-tag>
             </div>
             <div class="mt8">
               <span class="sr-title">阻力</span>
-              <el-tag v-for="(r, i) in (data.technical_analysis?.support_resistance?.resistance || [])" :key="'r'+i" class="mr8 mb8" type="danger" effect="light">
+              <el-tag
+                v-for="(r, i) in (data.technical_analysis?.support_resistance?.resistance || [])"
+                :key="`r${i}`"
+                class="mr8 mb8"
+                type="danger"
+                effect="light"
+              >
                 {{ fmtNum(r.level) }} · {{ r.strength || '-' }}
               </el-tag>
             </div>
           </div>
         </el-card>
       </el-col>
-
       <el-col :xs="24" :lg="12">
         <el-card shadow="hover" class="block-card">
           <template #header>
             <div class="card-hd">
-              <span>基本面</span>
+              <span>成交量分析</span>
             </div>
           </template>
           <el-descriptions :column="2" size="small" border>
-            <el-descriptions-item label="市值">{{ data.fundamental_analysis?.market_cap ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="PE">{{ fmtNum(data.fundamental_analysis?.pe_ratio) }}</el-descriptions-item>
-            <el-descriptions-item label="EPS">{{ fmtNum(data.fundamental_analysis?.eps) }}</el-descriptions-item>
-            <el-descriptions-item label="股息率">{{ fmtNum(data.fundamental_analysis?.dividend_yield) }}%</el-descriptions-item>
-            <el-descriptions-item label="利润率">{{ fmtNum(data.fundamental_analysis?.profit_margin) }}%</el-descriptions-item>
-            <el-descriptions-item label="收入趋势">{{ data.fundamental_analysis?.revenue_trend || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="备注" :span="2">{{ data.fundamental_analysis?.notes || '-' }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16" class="mt16">
-      <el-col :xs="24" :lg="12">
-        <el-card shadow="hover" class="block-card">
-          <template #header>
-            <div class="card-hd"><span>成交量分析</span></div>
-          </template>
-          <el-descriptions :column="2" size="small" border>
-            <el-descriptions-item label="当日量">{{ fmtInt(data.volume_analysis?.daily_volume) }}</el-descriptions-item>
-            <el-descriptions-item label="20日均量">{{ fmtInt(data.volume_analysis?.avg_volume_20d) }}</el-descriptions-item>
+            <el-descriptions-item label="当日成交量">{{ fmtInt(data.volume_analysis?.daily_volume) }}</el-descriptions-item>
+            <el-descriptions-item label="20 日均量">{{ fmtInt(data.volume_analysis?.avg_volume_20d) }}</el-descriptions-item>
             <el-descriptions-item label="趋势">{{ data.volume_analysis?.volume_trend || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="量能异动">{{ data.volume_analysis?.volume_spike ? '是' : '否' }}</el-descriptions-item>
+            <el-descriptions-item label="放量">{{ data.volume_analysis?.volume_spike ? '是' : '否' }}</el-descriptions-item>
             <el-descriptions-item label="解读" :span="2">{{ data.volume_analysis?.interpretation || '-' }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
+    </el-row>
+
+    <el-row :gutter="16" class="mt16">
       <el-col :xs="24" :lg="12">
         <el-card shadow="hover" class="block-card">
           <template #header>
-            <div class="card-hd"><span>新闻与情绪</span></div>
+            <div class="card-hd"><span>基本面</span></div>
           </template>
-          <el-descriptions :column="3" size="small" border>
-            <el-descriptions-item label="新闻数">{{ data.news_sentiment?.news_count ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="积极">{{ data.news_sentiment?.positive ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="消极">{{ data.news_sentiment?.negative ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="中性" :span="2">{{ data.news_sentiment?.neutral ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="总体">{{ data.news_sentiment?.overall_sentiment || '-' }}</el-descriptions-item>
+          <el-descriptions :column="2" size="small" border>
+            <el-descriptions-item label="市值">{{ data.fundamental_analysis?.market_cap || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="市盈率">{{ fmtNum(data.fundamental_analysis?.pe_ratio) }}</el-descriptions-item>
+            <el-descriptions-item label="每股收益">{{ fmtNum(data.fundamental_analysis?.eps) }}</el-descriptions-item>
+            <el-descriptions-item label="股息率">{{ fmtNum(data.fundamental_analysis?.dividend_yield) }}%</el-descriptions-item>
+            <el-descriptions-item label="营收趋势" :span="2">{{ data.fundamental_analysis?.revenue_trend || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="利润率" :span="2">{{ fmtNum(data.fundamental_analysis?.profit_margin) }}</el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">{{ data.fundamental_analysis?.notes || '-' }}</el-descriptions-item>
           </el-descriptions>
-          <div class="mt8" v-if="data.news_sentiment?.top_headlines?.length">
-            <div class="headline" v-for="(h, i) in data.news_sentiment?.top_headlines" :key="i">
-              <el-tag size="small" :type="headlineTagType(h.sentiment)">{{ h.sentiment || 'neutral' }}</el-tag>
-              <span class="headline-title">{{ h.title }}</span>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :lg="12">
+        <el-card shadow="hover" class="block-card">
+          <template #header>
+            <div class="card-hd"><span>新闻情绪</span></div>
+          </template>
+          <div v-if="newsAvailable">
+            <div class="headline" v-for="(headline, index) in (data.news_sentiment?.top_headlines || [])" :key="`headline-${index}`">
+              <el-tag :type="headlineTagType(headline.sentiment)" size="small">{{ headline.sentiment || '未知' }}</el-tag>
+              <span class="headline-title">{{ headline.title || '-' }}</span>
             </div>
+            <el-descriptions :column="2" size="small" border class="mt8">
+              <el-descriptions-item label="新闻数量">{{ data.news_sentiment?.news_count ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="整体情绪">{{ data.news_sentiment?.overall_sentiment || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="积极">{{ data.news_sentiment?.positive ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="中性">{{ data.news_sentiment?.neutral ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="消极">{{ data.news_sentiment?.negative ?? '-' }}</el-descriptions-item>
+            </el-descriptions>
           </div>
+          <el-empty v-else description="暂无新闻数据" />
         </el-card>
       </el-col>
     </el-row>
@@ -146,7 +158,7 @@
       <el-col :xs="24" :lg="12">
         <el-card shadow="hover" class="block-card">
           <template #header>
-            <div class="card-hd"><span>操作建议</span></div>
+            <div class="card-hd"><span>投资建议</span></div>
           </template>
           <div class="advice-group">
             <div class="advice-block">
@@ -155,18 +167,27 @@
                 <p>{{ data.investment_advice?.short_term?.strategy || '-' }}</p>
                 <div class="tags">
                   <span>买入区间：</span>
-                  <el-tag v-for="(v, i) in (data.investment_advice?.short_term?.buy_zone || [])" :key="'sb'+i" class="mr8 mb8">{{ fmtNum(v) }}</el-tag>
+                  <el-tag v-for="(v, i) in (data.investment_advice?.short_term?.buy_zone || [])" :key="`sb${i}`" class="mr8 mb8">
+                    {{ fmtNum(v) }}
+                  </el-tag>
                 </div>
                 <div class="tags">
                   <span>止盈区间：</span>
-                  <el-tag v-for="(v, i) in (data.investment_advice?.short_term?.take_profit_zone || [])" :key="'sp'+i" class="mr8 mb8" type="success">{{ fmtNum(v) }}</el-tag>
+                  <el-tag
+                    v-for="(v, i) in (data.investment_advice?.short_term?.take_profit_zone || [])"
+                    :key="`sp${i}`"
+                    class="mr8 mb8"
+                    type="success"
+                  >
+                    {{ fmtNum(v) }}
+                  </el-tag>
                 </div>
                 <div class="tags">
                   <span>止损：</span>
                   <el-tag type="danger">{{ fmtNum(data.investment_advice?.short_term?.stop_loss) }}</el-tag>
                 </div>
                 <div class="tags">
-                  <span>风险：</span>
+                  <span>风险评级：</span>
                   <el-tag type="warning">{{ data.investment_advice?.short_term?.risk_level || '-' }}</el-tag>
                 </div>
               </div>
@@ -177,18 +198,27 @@
                 <p>{{ data.investment_advice?.medium_term?.strategy || '-' }}</p>
                 <div class="tags">
                   <span>买入区间：</span>
-                  <el-tag v-for="(v, i) in (data.investment_advice?.medium_term?.buy_zone || [])" :key="'mb'+i" class="mr8 mb8">{{ fmtNum(v) }}</el-tag>
+                  <el-tag v-for="(v, i) in (data.investment_advice?.medium_term?.buy_zone || [])" :key="`mb${i}`" class="mr8 mb8">
+                    {{ fmtNum(v) }}
+                  </el-tag>
                 </div>
                 <div class="tags">
                   <span>止盈区间：</span>
-                  <el-tag v-for="(v, i) in (data.investment_advice?.medium_term?.take_profit_zone || [])" :key="'mp'+i" class="mr8 mb8" type="success">{{ fmtNum(v) }}</el-tag>
+                  <el-tag
+                    v-for="(v, i) in (data.investment_advice?.medium_term?.take_profit_zone || [])"
+                    :key="`mp${i}`"
+                    class="mr8 mb8"
+                    type="success"
+                  >
+                    {{ fmtNum(v) }}
+                  </el-tag>
                 </div>
                 <div class="tags">
                   <span>止损：</span>
                   <el-tag type="danger">{{ fmtNum(data.investment_advice?.medium_term?.stop_loss) }}</el-tag>
                 </div>
                 <div class="tags">
-                  <span>风险：</span>
+                  <span>风险评级：</span>
                   <el-tag type="warning">{{ data.investment_advice?.medium_term?.risk_level || '-' }}</el-tag>
                 </div>
               </div>
@@ -233,23 +263,63 @@ const props = defineProps<Props>();
 const changeText = computed(() => {
   const c = props.data?.price_data?.daily_change;
   const p = props.data?.price_data?.daily_change_percent;
-  if (c == null && p == null) return '-';
+  if (c == null && p == null) {
+    return '-';
+  }
   const sign = (c ?? 0) >= 0 ? '+' : '';
-  const cp = p != null ? ` (${sign}${p.toFixed(2)}%)` : '';
-  return `${sign}${(c ?? 0).toFixed(2)}${cp}`;
+  const changeValue = (c ?? 0).toFixed(2);
+  const percent = p != null ? ` (${sign}${p.toFixed(2)}%)` : '';
+  return `${sign}${changeValue}${percent}`;
 });
 
 const priceChangeTagType = computed(() => {
   const p = props.data?.price_data?.daily_change ?? 0;
-  return p > 0 ? 'success' : p < 0 ? 'danger' : 'info';
+  if (p > 0) {
+    return 'success';
+  }
+  if (p < 0) {
+    return 'danger';
+  }
+  return 'info';
 });
 
-const hasSR = computed(() => (props.data?.technical_analysis?.support_resistance?.support?.length || 0) > 0 || (props.data?.technical_analysis?.support_resistance?.resistance?.length || 0) > 0);
+const hasSR = computed(() => {
+  const support = props.data?.technical_analysis?.support_resistance?.support?.length ?? 0;
+  const resistance = props.data?.technical_analysis?.support_resistance?.resistance?.length ?? 0;
+  return support > 0 || resistance > 0;
+});
 
-function fmtNum(v?: number) { return typeof v === 'number' ? Number(v).toFixed(2) : '-'; }
-function fmtInt(v?: number) { return typeof v === 'number' ? Intl.NumberFormat().format(v) : '-'; }
-function formatDate(v?: string) { if (!v) return '-'; const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleString(); }
-function headlineTagType(s?: string) { if (!s) return 'info'; const t = s.toLowerCase(); return t.includes('pos') ? 'success' : t.includes('neg') ? 'danger' : 'info'; }
+const newsAvailable = computed(() => (props.data?.news_sentiment?.news_count ?? 0) > 0);
+
+function fmtNum(v?: number) {
+  return typeof v === 'number' ? Number(v).toFixed(2) : '-';
+}
+
+function fmtInt(v?: number) {
+  return typeof v === 'number' ? Intl.NumberFormat().format(v) : '-';
+}
+
+function formatDate(v?: string) {
+  if (!v) {
+    return '-';
+  }
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : d.toLocaleString();
+}
+
+function headlineTagType(s?: string) {
+  if (!s) {
+    return 'info';
+  }
+  const normalized = s.toLowerCase();
+  if (normalized.includes('pos')) {
+    return 'success';
+  }
+  if (normalized.includes('neg')) {
+    return 'danger';
+  }
+  return 'info';
+}
 </script>
 
 <style scoped>
@@ -275,4 +345,3 @@ function headlineTagType(s?: string) { if (!s) return 'info'; const t = s.toLowe
 .headline-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .risk-warning { margin-top: 12px; }
 </style>
-
