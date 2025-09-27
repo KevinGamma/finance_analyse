@@ -1,6 +1,6 @@
 ﻿import type { StockAnalysisRequest, StockAnalysisResponse } from '../types';
 import { apiClient } from './client';
-import type { ExtractedJson, SingleStockApiResponse, SingleStockApiEnvelope } from '../types';
+import type { ExtractedJson, SingleStockApiResponse, SingleStockApiEnvelope, TimeSeriesRawMap, TimeSeriesCandle, StructuredWithSeriesResult } from '../types';
 
 export async function analyzeStock(request: StockAnalysisRequest): Promise<StockAnalysisResponse> {
   const { data } = await apiClient.post<StockAnalysisResponse>('/stocks/analysis', request);
@@ -33,8 +33,37 @@ export function toExtractedJson(payload: SingleStockApiResponse): ExtractedJson 
   return (payload as ExtractedJson) ?? {};
 }
 
+export function extractTimeSeries(payload: SingleStockApiResponse): TimeSeriesCandle[] {
+  let map: TimeSeriesRawMap | undefined;
+  if (Array.isArray(payload)) {
+    const first = payload.find((x) => (x as SingleStockApiEnvelope)?.timeSeries) as SingleStockApiEnvelope | undefined;
+    map = first?.timeSeries;
+  } else if (payload && typeof payload === 'object' && 'timeSeries' in (payload as any)) {
+    map = (payload as SingleStockApiEnvelope).timeSeries;
+  }
+  if (!map || typeof map !== 'object') return [];
+  return Object.entries(map)
+    .map(([date, v]) => {
+      const open = parseFloat(v['1. open'] ?? '');
+      const high = parseFloat(v['2. high'] ?? '');
+      const low = parseFloat(v['3. low'] ?? '');
+      const close = parseFloat(v['4. close'] ?? '');
+      const volume = parseFloat(v['5. volume'] ?? '');
+      if ([open, high, low, close].some((n) => Number.isNaN(n))) return null;
+      return { date, open, high, low, close, volume: Number.isNaN(volume) ? 0 : volume } as TimeSeriesCandle;
+    })
+    .filter((x): x is TimeSeriesCandle => !!x)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
 export async function analyzeSingleStock(code: string): Promise<ExtractedJson> {
   const raw = await analyzeSingleStockRaw(code);
   return toExtractedJson(raw as SingleStockApiResponse);
 }
 
+export async function analyzeSingleStockWithSeries(code: string): Promise<StructuredWithSeriesResult> {
+  const raw = await analyzeSingleStockRaw(code);
+  const extracted = toExtractedJson(raw as SingleStockApiResponse);
+  const candles = extractTimeSeries(raw as SingleStockApiResponse);
+  return { extracted, candles };
+}

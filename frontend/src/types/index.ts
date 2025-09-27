@@ -147,6 +147,36 @@ export interface ExtractedJson {
   };
 }
 
-export type SingleStockApiEnvelope = { extractedJson?: ExtractedJson };
+export interface AnalysisTimeSeriesEntry {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface TimeSeriesCandle {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export type TimeSeriesRawMap = Record<string, {
+  '1. open'?: string; // using strings to reflect raw payload
+  '2. high'?: string;
+  '3. low'?: string;
+  '4. close'?: string;
+  '5. volume'?: string;
+  [k: string]: string | undefined;
+}>;
+
+export type SingleStockApiEnvelope = { extractedJson?: ExtractedJson; timeSeries?: TimeSeriesRawMap; metaData?: unknown };
 export type SingleStockApiResponse = ExtractedJson | SingleStockApiEnvelope | SingleStockApiEnvelope[];
 
+export interface StructuredWithSeriesResult {
+  extracted: ExtractedJson;
+  candles: TimeSeriesCandle[];
+}

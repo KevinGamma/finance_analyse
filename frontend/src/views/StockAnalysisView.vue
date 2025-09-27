@@ -46,7 +46,7 @@
             <el-empty v-if="!singleStockData" description="执行结构化分析以查看详细信息" />
             <StockAdvicePanel v-else :data="singleStockData" />
           </section>
-        </el-card>
+M         </el-card>
       </el-col>
       <el-col :xs="24" :lg="12">
         <el-card class="history-card" shadow="hover">
@@ -82,7 +82,26 @@
       </el-col>
     </el-row>
 
-    <el-dialog v-model="stockDetailDialogVisible" width="60%" :show-close="false" @close="handleStockDetailClose">
+    <!-- Full-width K-line row -->
+    <el-row v-if="klineCandles.length" class="kline-row">
+      <el-col :span="24">
+        <el-card class="kline-card" shadow="hover">
+          <template #header>
+            <div class="kline-card-header">
+              <div class="left">
+                <h3 class="card-title kline-title">K线走势 ({{ singleStockData?.stock?.code || stockAnalysisResult?.stockCode || '当前' }})</h3>
+              </div>
+              <div class="right">
+                <el-button size="small" text type="primary" @click="openKlineLarge(klineCandles)">全屏</el-button>
+              </div>
+            </div>
+          </template>
+          <KLineChart :candles="klineCandles" :height="520" />
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-dialog v-model="stockDetailDialogVisible" width="92%" :show-close="false" @close="handleStockDetailClose">
       <template #header>
         <div class="dialog-header">
           <span>分析详情：{{ selectedStockHistory?.stockCode }}</span>
@@ -95,9 +114,30 @@
         </p>
         <template v-if="selectedStockHistory.analysisType === 'STRUCTURED' && selectedStructuredHistoryData">
           <StockAdvicePanel :data="selectedStructuredHistoryData" />
+          <div class="dialog-divider"></div>
+          <div class="kline-header">
+            <h4 class="section-sub-title">K线图</h4>
+            <el-button v-if="selectedHistoryCandles.length" size="small" text type="primary" @click="openKlineLarge(selectedHistoryCandles)">全屏</el-button>
+          </div>
+          <el-empty v-if="!selectedHistoryCandles.length" description="无时间序列" />
+          <KLineChart v-else :candles="selectedHistoryCandles" :height="460" />
         </template>
         <pre v-else>{{ toReadableText(selectedStockHistory.analysis) }}</pre>
       </div>
+    </el-dialog>
+
+    <!-- Fullscreen enlarged K-line Dialog -->
+    <el-dialog v-model="klineDialogVisible" fullscreen :show-close="true" @close="closeKlineLarge">
+      <template #header>
+        <div class="dialog-header">
+          <span>K线全屏视图</span>
+          <el-button text type="primary" @click="closeKlineLarge">关闭</el-button>
+        </div>
+      </template>
+      <div class="kline-full-wrapper" v-if="largeCandles.length">
+        <KLineChart :candles="largeCandles" :height="calcFullscreenHeight()" />
+      </div>
+      <el-empty v-else description="暂无数据" />
     </el-dialog>
   </div>
 </template>
@@ -108,11 +148,13 @@ import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 
 import StockAdvicePanel from '../components/StockAdvicePanel.vue';
-import { analyzeStock, fetchHistory, toExtractedJson } from '../api/stockAnalysis';
+import KLineChart from '../components/KLineChart.vue';
+import { analyzeStock, fetchHistory, toExtractedJson, extractTimeSeries } from '../api/stockAnalysis';
 import type {
   ExtractedJson,
   SingleStockApiResponse,
-  StockAnalysisResponse
+  StockAnalysisResponse,
+  TimeSeriesCandle
 } from '../types';
 import { formatDate, toReadableText } from '../utils/display';
 import { extractErrorMessage } from '../utils/errors';
@@ -128,9 +170,12 @@ const singleStockLoading = ref(false);
 const stockHistoryLoading = ref(false);
 const stockAnalysisResult = ref<StockAnalysisResponse | null>(null);
 const singleStockData = ref<ExtractedJson | null>(null);
+const klineCandles = ref<TimeSeriesCandle[]>([]);
 const stockHistory = ref<StockAnalysisResponse[]>([]);
 const stockDetailDialogVisible = ref(false);
 const selectedStockHistory = ref<StockAnalysisResponse | null>(null);
+const largeCandles = ref<TimeSeriesCandle[]>([]);
+const klineDialogVisible = ref(false);
 
 const analysisTypeLabel: Record<StockAnalysisResponse['analysisType'], string> = {
   COMPREHENSIVE: '综合分析',
@@ -142,6 +187,15 @@ const selectedStructuredHistoryData = computed<ExtractedJson | null>(() => {
     return null;
   }
   return toExtractedJson(selectedStockHistory.value.analysis as SingleStockApiResponse);
+});
+
+const selectedHistoryCandles = computed<TimeSeriesCandle[]>(() => {
+  if (!selectedStockHistory.value || selectedStockHistory.value.analysisType !== 'STRUCTURED') return [];
+  try {
+    return extractTimeSeries(selectedStockHistory.value.analysis as SingleStockApiResponse);
+  } catch {
+    return [];
+  }
 });
 
 const stockRules = reactive<FormRules<StockFormModel>>({
@@ -193,10 +247,12 @@ async function submitSingleStock() {
     const code = stockForm.stockCode.trim().toUpperCase();
     const response = await analyzeStock({ stockCode: code, analysisType: 'STRUCTURED' });
     singleStockData.value = toExtractedJson(response.analysis as SingleStockApiResponse);
+    klineCandles.value = extractTimeSeries(response.analysis as SingleStockApiResponse);
     ElMessage.success(`已生成 ${code} 的结构化分析`);
     await refreshStockHistory();
   } catch (error) {
     singleStockData.value = null;
+    klineCandles.value = [];
     ElMessage.error(extractErrorMessage(error));
   } finally {
     singleStockLoading.value = false;
@@ -213,6 +269,17 @@ function handleStockDetailClose() {
   selectedStockHistory.value = null;
 }
 
+function openKlineLarge(candles: TimeSeriesCandle[]) {
+  largeCandles.value = candles.slice();
+  klineDialogVisible.value = true;
+  // slight delay to ensure dialog renders before chart init (handled internally by chart watch)
+}
+
+function closeKlineLarge() {
+  klineDialogVisible.value = false;
+  largeCandles.value = [];
+}
+
 async function refreshStockHistory() {
   stockHistoryLoading.value = true;
   try {
@@ -226,6 +293,10 @@ async function refreshStockHistory() {
 
 function formatAnalysisType(type: StockAnalysisResponse['analysisType']) {
   return analysisTypeLabel[type] ?? type;
+}
+
+function calcFullscreenHeight() {
+  return Math.max(window.innerHeight - 140, 500); // dynamic height
 }
 
 onMounted(async () => {
@@ -321,6 +392,13 @@ onMounted(async () => {
   letter-spacing: 0.5px;
 }
 
+.section-sub-title {
+  margin: 16px 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #32475b;
+}
+
 .dialog-header {
   display: flex;
   justify-content: space-between;
@@ -343,6 +421,25 @@ onMounted(async () => {
   margin-bottom: 16px;
   color: #6b7a90;
 }
+
+.dialog-divider {
+  height: 1px;
+  background: #e0e6ed;
+  margin: 16px 0;
+}
+
+.kline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.kline-row { margin-top: 8px; }
+.kline-card { border-radius: 16px; }
+.kline-card-header { display: flex; justify-content: space-between; align-items: center; }
+.kline-title { margin: 0; }
+.kline-full-wrapper :deep(.kline-chart) { height: 100%; }
 
 @media (max-width: 900px) {
   .stock-page {
