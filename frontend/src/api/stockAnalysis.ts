@@ -1,6 +1,6 @@
 ﻿import type { StockAnalysisRequest, StockAnalysisResponse } from '../types';
 import { apiClient } from './client';
-import type { ExtractedJson, SingleStockApiResponse, SingleStockApiEnvelope, TimeSeriesRawMap, TimeSeriesCandle, StructuredWithSeriesResult } from '../types';
+import type { ExtractedJson, SingleStockApiResponse, SingleStockApiEnvelope, TimeSeriesRawMap, TimeSeriesCandle, StructuredWithSeriesResult, IntradaySeriesResponse, IntradayInterval } from '../types';
 
 export async function analyzeStock(request: StockAnalysisRequest): Promise<StockAnalysisResponse> {
   const { data } = await apiClient.post<StockAnalysisResponse>('/stocks/analysis', request);
@@ -10,6 +10,25 @@ export async function analyzeStock(request: StockAnalysisRequest): Promise<Stock
 export async function fetchHistory(): Promise<StockAnalysisResponse[]> {
   const { data } = await apiClient.get<StockAnalysisResponse[]>('/stocks/history');
   return data;
+}
+
+export async function fetchIntradaySeries(symbol: string, interval: IntradayInterval): Promise<IntradaySeriesResponse> {
+  const { data } = await apiClient.get<IntradaySeriesResponse>('/stocks/intraday', { params: { symbol, interval } });
+  return data;
+}
+
+export function mapIntradayToCandles(series: IntradaySeriesResponse): TimeSeriesCandle[] {
+  return (series.candles ?? [])
+    .map((c) => ({
+      date: c.timestamp,
+      open: Number(c.open ?? 0),
+      high: Number(c.high ?? 0),
+      low: Number(c.low ?? 0),
+      close: Number(c.close ?? 0),
+      volume: Number(c.volume ?? 0)
+    }))
+    .filter((c) => Number.isFinite(c.open) && Number.isFinite(c.high) && Number.isFinite(c.low) && Number.isFinite(c.close))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
 export async function analyzeSingleStockRaw(code: string): Promise<unknown> {

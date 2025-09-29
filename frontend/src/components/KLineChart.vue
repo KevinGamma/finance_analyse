@@ -15,6 +15,7 @@ interface Props {
 const props = defineProps<Props>();
 const chartRef = ref<HTMLDivElement | null>(null);
 let chart: echarts.ECharts | null = null;
+let ro: ResizeObserver | null = null;
 
 const computedHeight = computed(() => {
   if (props.height == null) return '360px';
@@ -115,6 +116,7 @@ function render() {
   if (!chart) {
     chart = echarts.init(chartRef.value);
     window.addEventListener('resize', handleResize);
+    setupResizeObserver();
   }
   const option = buildOption();
   chart.setOption(option as any, true);
@@ -123,6 +125,25 @@ function render() {
 
 function handleResize() {
   chart?.resize();
+}
+
+function onFullscreenChange() {
+  // Resize a few times to accommodate transitions/animation of fullscreen
+  setTimeout(() => chart?.resize(), 50);
+  setTimeout(() => chart?.resize(), 200);
+}
+
+function setupResizeObserver() {
+  if (!chartRef.value || ro) return;
+  try {
+    ro = new ResizeObserver(() => {
+      // Debounce via microtask to avoid thrashing during transitions
+      Promise.resolve().then(() => chart?.resize());
+    });
+    ro.observe(chartRef.value);
+  } catch (e) {
+    // older browsers: ignore
+  }
 }
 
 watch(() => props.candles, async (val) => {
@@ -138,11 +159,20 @@ watch(computedHeight, () => {
 onMounted(() => {
   if (props.candles.length) {
     render();
+  } else {
+    // still set up resize observer so future renders adapt
+    setupResizeObserver();
   }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
+  if (ro) {
+    try { ro.disconnect(); } catch {}
+    ro = null;
+  }
   if (chart) {
     chart.dispose();
     chart = null;

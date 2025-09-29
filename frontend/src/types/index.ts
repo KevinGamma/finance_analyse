@@ -176,6 +176,36 @@ export type TimeSeriesRawMap = Record<string, {
 export type SingleStockApiEnvelope = { extractedJson?: ExtractedJson; timeSeries?: TimeSeriesRawMap; metaData?: unknown };
 export type SingleStockApiResponse = ExtractedJson | SingleStockApiEnvelope | SingleStockApiEnvelope[];
 
+
+export type IntradayInterval = "1min" | "5min" | "15min" | "30min" | "60min";
+
+export interface IntradayCandleDto {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface IntradaySeriesResponse {
+  symbol: string;
+  interval: IntradayInterval;
+  lastRefreshed: string | null;
+  timezone: string | null;
+  candles: IntradayCandleDto[];
+}
+
+export interface CandlestickPoint {
+  timestamp: string;
+  label: string;
+  open: number;
+  close: number;
+  low: number;
+  high: number;
+  volume: number;
+}
+
 export interface StructuredWithSeriesResult {
   extracted: ExtractedJson;
   candles: TimeSeriesCandle[];

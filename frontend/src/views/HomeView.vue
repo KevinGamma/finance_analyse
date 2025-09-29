@@ -2,14 +2,15 @@
   <div class="home-page">
     <section class="hero">
       <h2>{{ currentUser?.username }}，欢迎回来，请选择要执行的操作</h2>
-      <p>将每日工作流程拆分为专注的股票分析与新闻分析。</p>
+      <p>进入股票分析或新闻分析模块。</p>
     </section>
+
     <el-row :gutter="20" class="option-grid">
       <el-col :xs="24" :md="12">
         <el-card class="option-card" shadow="hover">
           <div class="card-body">
             <h3>股票分析</h3>
-            <p>提交新的分析任务或查看近期的结构化结果。</p>
+            <p>进入股票分析功能页面，包含综合分析、结构化分析、K线查看与历史记录。</p>
             <el-button type="primary" @click="goToStocks">进入股票分析</el-button>
           </div>
         </el-card>
@@ -29,13 +30,12 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-
 import { useAuthState } from '../services/auth';
 
 const router = useRouter();
 const { currentUser } = useAuthState();
 
-const goToStocks = () => router.push({ name: 'stocks' });
+const goToStocks = () => router.push({ name: 'stocks-home' });
 const goToNews = () => router.push({ name: 'news' });
 </script>
 

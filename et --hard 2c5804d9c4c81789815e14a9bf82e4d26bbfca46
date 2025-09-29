@@ -1,0 +1,23 @@
+[33mcommit 3a37fbf6cdcc303bd218637033bd2a857186d0e3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Gamma <202300300370@mail.sdu.edu.cn>
+Date:   Fri Sep 26 15:42:32 2025 +0800
+
+    完成了用户注册与登录功能，增加了一个主界面，完成了新闻分析功能与股票分析功能的分离
+
+[33mcommit 00fe52e2640694ad1591adf6af7dd0d2d8e4c7ed[m
+Author: Gamma <202300300370@mail.sdu.edu.cn>
+Date:   Fri Sep 26 08:46:32 2025 +0800
+
+    实现了股票结构化分析与相应的历史记录查看
+
+[33mcommit 2c5804d9c4c81789815e14a9bf82e4d26bbfca46[m
+Author: Gamma <202300300370@mail.sdu.edu.cn>
+Date:   Tue Sep 23 20:07:16 2025 +0800
+
+    实现关键词新闻分析与分析记录持久化存储
+
+[33mcommit 2a64f2ec3ba341dfcc6e3e9b22252cc400d230d7[m
+Author: Gamma <202300300370@mail.sdu.edu.cn>
+Date:   Tue Sep 23 17:23:50 2025 +0800
+
+    接入 MySQL 实现股票分析历史持久化，补充 H2 测试配置与数据库建表脚本，完善异常处理与持久化集成测试

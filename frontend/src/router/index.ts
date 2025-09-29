@@ -17,10 +17,35 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
       meta: { requiresAuth: true }
     },
+    // Stock analysis module: home + split pages
     {
       path: '/stocks',
-      name: 'stocks',
-      component: () => import('../views/StockAnalysisView.vue'),
+      name: 'stocks-home',
+      component: () => import('../views/StockHomeView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/stocks/comprehensive',
+      name: 'stocks-comprehensive',
+      component: () => import('../views/StockComprehensiveView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/stocks/structured',
+      name: 'stocks-structured',
+      component: () => import('../views/StockStructuredView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/stocks/kline',
+      name: 'stocks-kline',
+      component: () => import('../views/StockKlineView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/stocks/history',
+      name: 'stocks-history',
+      component: () => import('../views/StockHistoryView.vue'),
       meta: { requiresAuth: true }
     },
     {

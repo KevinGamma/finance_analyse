@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.finance_analysis.dto.IntradayTimeSeriesResponse;
 import com.finance_analysis.dto.StockAnalysisRequest;
 import com.finance_analysis.dto.StockAnalysisResponse;
 import com.finance_analysis.service.AuthService;
+import com.finance_analysis.service.IntradayMarketDataService;
 import com.finance_analysis.service.StockAnalysisService;
 
 import jakarta.validation.Valid;
@@ -26,11 +28,14 @@ import jakarta.validation.Valid;
 public class StockAnalysisController {
 
     private final StockAnalysisService stockAnalysisService;
+    private final IntradayMarketDataService intradayMarketDataService;
     private final AuthService authService;
 
     public StockAnalysisController(StockAnalysisService stockAnalysisService,
+                                   IntradayMarketDataService intradayMarketDataService,
                                    AuthService authService) {
         this.stockAnalysisService = stockAnalysisService;
+        this.intradayMarketDataService = intradayMarketDataService;
         this.authService = authService;
     }
 
@@ -54,5 +59,13 @@ public class StockAnalysisController {
         authService.requireUser(authorization);
         String body = stockAnalysisService.analyzeSingleStockRaw(code);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body);
+    }
+
+    @GetMapping("/intraday")
+    public IntradayTimeSeriesResponse intraday(@RequestParam("symbol") String symbol,
+                                               @RequestParam("interval") String interval,
+                                               @RequestHeader(value = "Authorization", required = false) String authorization) {
+        authService.requireUser(authorization);
+        return intradayMarketDataService.fetchIntradaySeries(symbol, interval);
     }
 }
